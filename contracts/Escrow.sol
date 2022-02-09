@@ -82,6 +82,11 @@ contract Escrow is IERC721Receiver {
         return allDeals[dealId];
     }
 
+    function getDealStatusById(address nftCollection, uint256 tokenId) external view returns(Status) {
+        string memory dealId = getDealId(nftCollection, tokenId);
+        return allDeals[dealId].dealStatus;
+    }
+
     function sendNftToBuyer(address nftCollection, address buyer, uint256 tokenId) private {
         ERC721(nftCollection).safeTransferFrom(address(this), buyer, tokenId);
     }
