@@ -24,7 +24,8 @@ contract Escrow is IERC721Receiver {
     }
 
     mapping(string => Deal) public allDeals;
-    mapping(address => mapping(string => Deal)) public userDeals;
+    mapping(address => string) public userPurchases;
+    mapping(address => string) public userSales;
 
     constructor() {
     }
@@ -45,7 +46,7 @@ contract Escrow is IERC721Receiver {
         });
 
         allDeals[dealId] = deal;
-        userDeals[msg.sender][dealId] = deal;
+        userSales[msg.sender] = dealId;
     }
 
     function cancelTrade(address nftCollection, uint256 tokenId) public 
@@ -53,24 +54,28 @@ contract Escrow is IERC721Receiver {
         string memory dealId = getDealId(nftCollection, tokenId);
         require(msg.sender == allDeals[dealId].seller, "Only the seller can cancel.");
         allDeals[dealId].dealStatus = Status.CANCELED;
-        userDeals[msg.sender][dealId].dealStatus = Status.CANCELED;
     }
 
     function changeBuyer(address nftCollection, address newBuyer, uint256 tokenId) public 
     {
         string memory dealId = getDealId(nftCollection, tokenId);
         require(msg.sender == allDeals[dealId].seller, "Only the seller can change buyers.");
+        require(allDeals[dealId].dealStatus == Status.AWAITING_PAYMENT, "This transaction has already been completed");
 
-
+        allDeals[dealId].buyer = newBuyer;
     }
 
-    function finalizeTrade(address nftCollection, uint256 tokenId) public 
+    function finalizeTrade(address nftCollection, uint256 tokenId) public payable
     {
         string memory dealId = getDealId(nftCollection, tokenId);
         require(msg.sender == allDeals[dealId].buyer, "Only the buyer can complete this transaction.");
-		require(allDeals[dealId].dealStatus == Status.AWAITING_PAYMENT);
+		require(allDeals[dealId].dealStatus == Status.AWAITING_PAYMENT, "This deal has already been completed");
+        require(msg.value == allDeals[dealId].price);
+       
+        ERC721(nftCollection).safeTransferFrom(address(this), allDeals[dealId].buyer, tokenId);
 
-        // check deposit amount
+        allDeals[dealId].dealStatus = Status.COMPLETE;
+        userPurchases[msg.sender] = dealId;
     }
 
     function getDealId(address nftAddr, uint256 tokenId) internal pure returns(string memory) {
@@ -78,6 +83,16 @@ contract Escrow is IERC721Receiver {
     }
 
     function getDealById(address nftCollection, uint256 tokenId) external view returns(Deal memory) {
+        string memory dealId = getDealId(nftCollection, tokenId);
+        return allDeals[dealId];
+    }
+
+    function getUserSaleById(address nftCollection, uint256 tokenId) external view returns(Deal memory) {
+        string memory dealId = getDealId(nftCollection, tokenId);
+        return allDeals[dealId];
+    }
+
+    function getUserPurchaseById(address nftCollection, uint256 tokenId) external view returns(Deal memory) {
         string memory dealId = getDealId(nftCollection, tokenId);
         return allDeals[dealId];
     }
