@@ -24,13 +24,13 @@ contract Escrow is IERC721Receiver {
     }
 
     mapping(string => Deal) public allDeals;
-    mapping(address => string) public userPurchases;
-    mapping(address => string) public userSales;
+    mapping(address => string[]) public userPurchases;
+    mapping(address => string[]) public userSales;
 
     constructor() {
     }
 
-    function inititalizeTrade(address nftCollection, address buyer, uint256 tokenId, uint256 expectedPrice) public {
+    function initializeTrade(address nftCollection, address buyer, uint256 tokenId, uint256 expectedPrice) public {
         ERC721(nftCollection).isApprovedForAll(msg.sender, address(this));
         ERC721(nftCollection).safeTransferFrom(msg.sender, address(this), tokenId);
 
@@ -46,13 +46,14 @@ contract Escrow is IERC721Receiver {
         });
 
         allDeals[dealId] = deal;
-        userSales[msg.sender] = dealId;
+        userSales[msg.sender].push(dealId);
     }
 
     function cancelTrade(address nftCollection, uint256 tokenId) public 
     {
         string memory dealId = getDealId(nftCollection, tokenId);
         require(msg.sender == allDeals[dealId].seller, "Only the seller can cancel.");
+        require(allDeals[dealId].dealStatus == Status.AWAITING_PAYMENT, "This deal has already been completed");
         allDeals[dealId].dealStatus = Status.CANCELED;
     }
 
@@ -75,7 +76,7 @@ contract Escrow is IERC721Receiver {
         ERC721(nftCollection).safeTransferFrom(address(this), allDeals[dealId].buyer, tokenId);
 
         allDeals[dealId].dealStatus = Status.COMPLETE;
-        userPurchases[msg.sender] = dealId;
+        userPurchases[msg.sender].push(dealId);
     }
 
     function getDealId(address nftAddr, uint256 tokenId) internal pure returns(string memory) {
@@ -83,16 +84,6 @@ contract Escrow is IERC721Receiver {
     }
 
     function getDealById(address nftCollection, uint256 tokenId) external view returns(Deal memory) {
-        string memory dealId = getDealId(nftCollection, tokenId);
-        return allDeals[dealId];
-    }
-
-    function getUserSaleById(address nftCollection, uint256 tokenId) external view returns(Deal memory) {
-        string memory dealId = getDealId(nftCollection, tokenId);
-        return allDeals[dealId];
-    }
-
-    function getUserPurchaseById(address nftCollection, uint256 tokenId) external view returns(Deal memory) {
         string memory dealId = getDealId(nftCollection, tokenId);
         return allDeals[dealId];
     }
