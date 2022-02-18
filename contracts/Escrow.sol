@@ -55,6 +55,7 @@ contract Escrow is IERC721Receiver {
         require(msg.sender == allDeals[dealId].seller, "Only the seller can cancel.");
         require(allDeals[dealId].dealStatus == Status.AWAITING_PAYMENT, "This deal has already been completed");
         allDeals[dealId].dealStatus = Status.CANCELED;
+	ERC721(nftCollection).safeTransferFrom(address(this), allDeals[dealId].seller, tokenId);
     }
 
     function changeBuyer(address nftCollection, address newBuyer, uint256 tokenId) public 
